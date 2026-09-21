@@ -63,3 +63,14 @@ Set the same `VITE_API_URL` in the frontend and allow inbound access to port 500
 ## Docker judge notes
 
 This implementation isolates code execution in containers with restricted networking, read-only root filesystem, memory usage limits, CPU caps, and enforced timeouts. The judge includes a fallback mock mode for environments where Docker is not available during local development.
+
+## Vercel deployment
+
+Deploy this as two Vercel projects:
+
+1. Create a project with root directory `backend`. Vercel will use `api/index.js` as the serverless API entrypoint.
+2. Create a second project with root directory `frontend`, framework preset `Vite`, build command `npm run build`, and output directory `dist`.
+3. In the frontend project, set `VITE_API_URL` to the deployed backend URL, for example `https://spectra-api.vercel.app`.
+4. In the backend project, set `JWT_SECRET` and the external MySQL variables `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME`.
+
+The backend uses in-memory storage when MySQL variables are missing, so data will not persist across serverless invocations in that mode. Socket.IO live updates and Docker-based code judging require a persistent/container-capable backend service; the Vercel deployment supports the HTTP API, but those features should be hosted separately if they are required in production. When using such a service, set `VITE_SOCKET_URL` to its public URL in the frontend project.

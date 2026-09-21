@@ -64,6 +64,10 @@ setInterval(() => {
 
 initDatabase();
 
-server.listen(PORT, () => {
-  console.log(`SPECTRA backend running on http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`SPECTRA backend running on http://localhost:${PORT}`);
+  });
+}
+
+export { app };

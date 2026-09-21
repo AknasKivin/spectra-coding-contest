@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 
-const API_BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`;
+const API_BASE = import.meta.env.VITE_API_URL || (
+  import.meta.env.PROD ? window.location.origin : `http://${window.location.hostname}:5000`
+);
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (!import.meta.env.PROD ? API_BASE : '');
 const DEFAULT_CONTEST_CODE = 'SPECTRA';
 const starterCode = {
   Python: 'def solve():\n    n = int(input())\n    print(n * n)\n\nsolve()\n',
@@ -20,6 +23,7 @@ function App() {
   const [selectedContestCode, setSelectedContestCode] = useState(DEFAULT_CONTEST_CODE);
   const [studentInfo, setStudentInfo] = useState({ participantId: '', name: '', department: '', year: '' });
   const [studentLoginError, setStudentLoginError] = useState('');
+  const [joiningContest, setJoiningContest] = useState(false);
   const [joinedParticipant, setJoinedParticipant] = useState(null);
   const [selectedProblem, setSelectedProblem] = useState(null);
   const [language, setLanguage] = useState('Python');
@@ -128,7 +132,9 @@ function App() {
   }, [view, hostToken, contest?.id]);
 
   useEffect(() => {
-    const connection = io(API_BASE, { transports: ['websocket'] });
+    if (!SOCKET_URL) return undefined;
+
+    const connection = io(SOCKET_URL, { transports: ['websocket'] });
     setSocket(connection);
     connection.on('dashboard:update', (payload) => {
       if (payload?.stats) setStats(payload.stats);
@@ -306,6 +312,8 @@ function App() {
 
   async function handleContestJoin(event) {
     event.preventDefault();
+    if (joiningContest) return;
+    setMessage('');
     const trimmedRegNo = String(studentInfo.participantId || '').trim();
     const trimmedName = String(studentInfo.name || '').trim();
     const trimmedDepartment = String(studentInfo.department || '').trim();
@@ -334,6 +342,7 @@ function App() {
     const contestCode = (selectedContestCode || DEFAULT_CONTEST_CODE).trim() || DEFAULT_CONTEST_CODE;
 
     setStudentLoginError('');
+    setJoiningContest(true);
     if (document.documentElement.requestFullscreen) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
@@ -365,6 +374,8 @@ function App() {
       await loadContestByCode(contestCode);
     } catch (error) {
       setMessage('Unable to join right now. Please make sure the backend server is running.');
+    } finally {
+      setJoiningContest(false);
     }
   }
 
@@ -568,7 +579,8 @@ function App() {
                 <input id="year" value={studentInfo.year} onChange={(e) => setStudentInfo({ ...studentInfo, year: e.target.value })} placeholder="Year" />
                 <div className="contest-code-note">Contest code: {selectedContestCode || DEFAULT_CONTEST_CODE}</div>
                 {studentLoginError && <div className="error-message">{studentLoginError}</div>}
-                <button type="submit">Join</button>
+                {message && <div className={message.startsWith('Joined') ? 'message' : 'error-message'}>{message}</div>}
+                <button type="submit" disabled={joiningContest}>{joiningContest ? 'Joining...' : 'Join'}</button>
               </form>
             ) : (
               <>
